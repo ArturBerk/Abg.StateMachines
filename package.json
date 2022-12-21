@@ -1,0 +1,11 @@
+{
+  "name": "abg.state-machines",
+  "displayName": "Abg.StateMachines",
+  "version": "0.0.1",
+  "description": "State machines",
+  "keywords": [
+    "state",
+    "machine"
+  ],
+  "unity": "2019.4"
+}
