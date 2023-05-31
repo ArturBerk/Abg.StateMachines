@@ -78,7 +78,9 @@ namespace Abg.StateMachines
             activeState = newState;
             
             if (activeState is IStateEnter stateEnter)
-                await stateEnter.OnEnter();
+                stateEnter.OnEnter();
+            if (activeState is IStateEnterAsync stateEnterAsync)
+                await stateEnterAsync.OnEnterAsync();
         }
         
         private async Task SwitchState<TState, TPayload>(TState newState, TPayload payload)
@@ -94,7 +96,9 @@ namespace Abg.StateMachines
         private async Task ExitState()
         {
             if (activeState is IStateExit stateExit)
-                await stateExit.OnExit();
+                stateExit.OnExit();
+            if (activeState is IStateExitAsync stateExitAsync)
+                await stateExitAsync.OnExitAsync();
             activeState = null;
             activeStateType = null;
         }

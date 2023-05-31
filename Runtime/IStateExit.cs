@@ -4,6 +4,11 @@ namespace Abg.StateMachines
 {
     public interface IStateExit
     {
-        Task OnExit();
+        void OnExit();
+    }
+    
+    public interface IStateExitAsync
+    {
+        Task OnExitAsync();
     }
 }

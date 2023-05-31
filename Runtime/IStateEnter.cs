@@ -4,6 +4,11 @@ namespace Abg.StateMachines
 {
     public interface IStateEnter
     {
-        Task OnEnter();
+        void OnEnter();
+    }
+
+    public interface IStateEnterAsync
+    {
+        Task OnEnterAsync();
     }
 }

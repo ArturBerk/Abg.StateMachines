@@ -2,38 +2,20 @@
 
 namespace Abg.StateMachines
 {
-    public abstract class CompositeState : IStateMachine, IStateEnter, IStateExit
+    public abstract class CompositeState<TStartState> : CompositeState, IStateEnterAsync 
+        where TStartState : class
     {
-        private StateMachine stateMachine;
-
-        protected abstract Task InitializeStates(StateMachine stateMachine);
-        
-        public virtual Task OnEnter()
+        public virtual Task OnEnterAsync()
         {
-            stateMachine = new StateMachine();
-            return InitializeStates(stateMachine);
+            return Transit<TStartState>();
         }
-
-        public virtual Task OnExit()
+    }
+    
+    public abstract class CompositeState : StateMachine, IStateExitAsync
+    {
+        public virtual Task OnExitAsync()
         {
-            var t = stateMachine.Stop();
-            stateMachine = null;
-            return t;
-        }
-
-        public Task Transit<TState, TPayload>(TPayload payload) where TState : class, IStateEnterWithPayload<TPayload>
-        {
-            return stateMachine.Transit<TState, TPayload>(payload);
-        }
-
-        public Task Transit<TState>() where TState : class
-        {
-            return stateMachine.Transit<TState>();
-        }
-
-        public Task Stop()
-        {
-            return stateMachine.Stop();
+            return Stop();
         }
     }
 }
