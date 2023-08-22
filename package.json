@@ -1,8 +1,8 @@
 {
   "name": "abg.state-machines",
   "displayName": "Abg.StateMachines",
-  "version": "0.0.1",
-  "description": "State machines",
+  "version": "1.0.0",
+  "description": "State machines for manageing states in Unity",
   "keywords": [
     "state",
     "machine"
