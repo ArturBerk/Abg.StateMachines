@@ -9,6 +9,6 @@ namespace Abg.StateMachines
     
     public interface IStateExitAsync
     {
-        Task OnExitAsync();
+        ValueTask OnExitAsync();
     }
 }

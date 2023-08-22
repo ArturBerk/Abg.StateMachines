@@ -11,6 +11,8 @@ namespace Abg.StateMachines
         private Type activeStateType;
         private bool isStateChanging;
 
+        public event Action<object> ActiveStateChanged;
+
         private StateChanging BeginStateChanging()
         {
             return new StateChanging(this);
@@ -26,37 +28,39 @@ namespace Abg.StateMachines
             transitions[(typeof(TFrom), typeof(TTo))] = stateFactory;
         }
 
-        public Task Transit<TState>() where TState : class
+        public async ValueTask Transit<TState>() where TState : class
         {
             using var stateChanging = BeginStateChanging();
             if (!TryGetState<TState>(activeStateType, out var newState))
             {
-                if (activeState is IStateMachine subStateMachine)
-                    return subStateMachine.Transit<TState>();
-                else throw new TransitNotFoundException(typeof(TState));
+                if (activeState is not IStateMachine subStateMachine)
+                    throw new TransitNotFoundException(typeof(TState));
+                await subStateMachine.Transit<TState>();
+                return;
             }
 
-            return SwitchState(newState);
+            await SwitchState(newState);
         }
 
-        public Task Transit<TState, TPayload>(TPayload payload)
+        public async ValueTask Transit<TState, TPayload>(TPayload payload)
             where TState : class, IStateEnterWithPayload<TPayload>
         {
             using var stateChanging = BeginStateChanging();
             if (!TryGetState<TState>(activeState?.GetType(), out var newState))
             {
-                if (activeState is IStateMachine subStateMachine)
-                    return subStateMachine.Transit<TState, TPayload>(payload);
-                else throw new TransitNotFoundException(typeof(TState));
+                if (activeState is not IStateMachine subStateMachine)
+                    throw new TransitNotFoundException(typeof(TState));
+                await subStateMachine.Transit<TState, TPayload>(payload);
+                return;
             }
 
-            return SwitchState(newState, payload);
+            await SwitchState(newState, payload);
         }
 
-        public Task Stop()
+        public async ValueTask Stop()
         {
             using var stateChanging = BeginStateChanging();
-            return ExitState();
+            await ExitState();
         }
 
         private bool TryGetState<TState>(Type activeStateType, out TState state) where TState : class
@@ -71,7 +75,7 @@ namespace Abg.StateMachines
             return state != null;
         }
 
-        private async Task SwitchState<TState>(TState newState)
+        private async ValueTask SwitchState<TState>(TState newState)
         {
             await ExitState();
             activeStateType = typeof(TState);
@@ -81,9 +85,11 @@ namespace Abg.StateMachines
                 stateEnter.OnEnter();
             if (activeState is IStateEnterAsync stateEnterAsync)
                 await stateEnterAsync.OnEnterAsync();
+            
+            ActiveStateChanged?.Invoke(activeState);
         }
         
-        private async Task SwitchState<TState, TPayload>(TState newState, TPayload payload)
+        private async ValueTask SwitchState<TState, TPayload>(TState newState, TPayload payload)
         {
             await ExitState();
             activeStateType = typeof(TState);
@@ -91,16 +97,24 @@ namespace Abg.StateMachines
             
             if (activeState is IStateEnterWithPayload<TPayload> stateEnter)
                 await stateEnter.OnEnterWithPayload(payload);
+            
+            ActiveStateChanged?.Invoke(activeState);
         }
 
-        private async Task ExitState()
+        private async ValueTask ExitState()
         {
-            if (activeState is IStateExit stateExit)
-                stateExit.OnExit();
-            if (activeState is IStateExitAsync stateExitAsync)
-                await stateExitAsync.OnExitAsync();
-            activeState = null;
-            activeStateType = null;
+            try
+            {
+                if (activeState is IStateExit stateExit)
+                    stateExit.OnExit();
+                if (activeState is IStateExitAsync stateExitAsync)
+                    await stateExitAsync.OnExitAsync();
+            }
+            finally
+            {
+                activeState = null;
+                activeStateType = null;
+            }
         }
 
         private readonly struct StateChanging : IDisposable

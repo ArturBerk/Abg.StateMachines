@@ -9,6 +9,6 @@ namespace Abg.StateMachines
 
     public interface IStateEnterAsync
     {
-        Task OnEnterAsync();
+        ValueTask OnEnterAsync();
     }
 }

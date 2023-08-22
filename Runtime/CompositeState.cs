@@ -5,7 +5,7 @@ namespace Abg.StateMachines
     public abstract class CompositeState<TStartState> : CompositeState, IStateEnterAsync 
         where TStartState : class
     {
-        public virtual Task OnEnterAsync()
+        public virtual ValueTask OnEnterAsync()
         {
             return Transit<TStartState>();
         }
@@ -13,7 +13,7 @@ namespace Abg.StateMachines
     
     public abstract class CompositeState : StateMachine, IStateExitAsync
     {
-        public virtual Task OnExitAsync()
+        public virtual ValueTask OnExitAsync()
         {
             return Stop();
         }
