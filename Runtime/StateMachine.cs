@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using UnityEngine;
 
 namespace Abg.StateMachines
 {
@@ -9,15 +10,9 @@ namespace Abg.StateMachines
         private readonly Dictionary<(Type, Type), object> transitions = new();
         private object activeState;
         private Type activeStateType;
-        private bool isStateChanging;
 
         public event Action<object> ActiveStateChanged;
 
-        private StateChanging BeginStateChanging()
-        {
-            return new StateChanging(this);
-        }
-        
         public void AddTransitionFromAny<TState>(Func<TState> stateFactory) where TState : class
         {
             transitions[(null, typeof(TState))] = stateFactory;
@@ -30,36 +25,47 @@ namespace Abg.StateMachines
 
         public async ValueTask Transit<TState>() where TState : class
         {
-            using var stateChanging = BeginStateChanging();
-            if (!TryGetState<TState>(activeStateType, out var newState))
+            try
             {
-                if (activeState is not IStateMachine subStateMachine)
-                    throw new TransitNotFoundException(typeof(TState));
-                await subStateMachine.Transit<TState>();
-                return;
-            }
+                if (!TryGetState<TState>(activeStateType, out var newState))
+                {
+                    if (activeState is not IStateMachine subStateMachine)
+                        throw new TransitNotFoundException(typeof(TState));
+                    await subStateMachine.Transit<TState>();
+                    return;
+                }
 
-            await SwitchState(newState);
+                await SwitchState(newState);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError(e);
+            }
         }
 
         public async ValueTask Transit<TState, TPayload>(TPayload payload)
             where TState : class, IStateEnterWithPayload<TPayload>
         {
-            using var stateChanging = BeginStateChanging();
-            if (!TryGetState<TState>(activeState?.GetType(), out var newState))
+            try
             {
-                if (activeState is not IStateMachine subStateMachine)
-                    throw new TransitNotFoundException(typeof(TState));
-                await subStateMachine.Transit<TState, TPayload>(payload);
-                return;
-            }
+                if (!TryGetState<TState>(activeState?.GetType(), out var newState))
+                {
+                    if (activeState is not IStateMachine subStateMachine)
+                        throw new TransitNotFoundException(typeof(TState));
+                    await subStateMachine.Transit<TState, TPayload>(payload);
+                    return;
+                }
 
-            await SwitchState(newState, payload);
+                await SwitchState(newState, payload);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError(e);
+            }
         }
 
         public async ValueTask Stop()
         {
-            using var stateChanging = BeginStateChanging();
             await ExitState();
         }
 
@@ -80,24 +86,24 @@ namespace Abg.StateMachines
             await ExitState();
             activeStateType = typeof(TState);
             activeState = newState;
-            
+
             if (activeState is IStateEnter stateEnter)
                 stateEnter.OnEnter();
             if (activeState is IStateEnterAsync stateEnterAsync)
                 await stateEnterAsync.OnEnterAsync();
-            
+
             ActiveStateChanged?.Invoke(activeState);
         }
-        
+
         private async ValueTask SwitchState<TState, TPayload>(TState newState, TPayload payload)
         {
             await ExitState();
             activeStateType = typeof(TState);
             activeState = newState;
-            
+
             if (activeState is IStateEnterWithPayload<TPayload> stateEnter)
                 await stateEnter.OnEnterWithPayload(payload);
-            
+
             ActiveStateChanged?.Invoke(activeState);
         }
 
@@ -114,23 +120,6 @@ namespace Abg.StateMachines
             {
                 activeState = null;
                 activeStateType = null;
-            }
-        }
-
-        private readonly struct StateChanging : IDisposable
-        {
-            private readonly StateMachine stateMachine;
-
-            public StateChanging(StateMachine stateMachine)
-            {
-                if (stateMachine.isStateChanging)
-                    throw new Exception("State machine in states changing state, can't transit to new state");
-                this.stateMachine = stateMachine;
-            }
-
-            public void Dispose()
-            {
-                stateMachine.isStateChanging = false;
             }
         }
     }
